@@ -1,0 +1,20 @@
+version: "3.3"
+services:
+  amqp_server:
+    image: rabbitmq:3.8.5-alpine
+    hostname: amqplib-topic-controllers-test
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      - amqplib_topic_controllers_test
+  tests:
+    depends_on:
+      - amqp_server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - amqplib_topic_controllers_test
+networks:
+  amqplib_topic_controllers_test:

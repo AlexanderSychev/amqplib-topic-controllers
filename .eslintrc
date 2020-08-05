@@ -1,0 +1,74 @@
+{
+    // Don't use parent config
+    "root": true,
+    // Can't be overridden, so it's here
+    "extends": [
+        "plugin:@typescript-eslint/recommended",
+        "prettier",
+        "prettier/@typescript-eslint"
+    ],
+    "rules": {
+        // Requires in js code are fine
+        "@typescript-eslint/no-var-requires": "off",
+        "no-use-before-define": ["error", "nofunc"],
+        "@typescript-eslint/no-use-before-define": ["error", "nofunc"],
+        "@typescript-eslint/ban-types": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "no-console": ["error", { "allow": ["warn", "error", "info", "groupCollapsed", "groupEnd"] }],
+        "capitalized-comments": ["error", "always", { "ignorePattern": "tslint|webpackChunkName" }]
+    },
+    "overrides": [
+        {
+            "files": ["**/*.ts", "**/*.tsx"],
+            "settings": {
+                "import/resolver": {
+                    "node": {
+                        "extensions": [".ts", ".tsx", ".d.ts", ".js"]
+                    },
+                    "typescript": {}
+                },
+                "import/ignore": [".scss"]
+            },
+            "plugins": ["@typescript-eslint"],
+            "parser": "@typescript-eslint/parser",
+            "parserOptions": {
+                "project": "./tsconfig.json"
+            },
+            "rules": {
+                // Bring back disabled rule
+                "@typescript-eslint/no-var-requires": "error",
+                // Empty interfaces for Props are convenient
+                "@typescript-eslint/no-empty-interface": "off",
+                // Unavoidable in some cases
+                "@typescript-eslint/no-non-null-assertion": "off",
+                // Useless
+                "@typescript-eslint/explicit-function-return-type": "off",
+                // https://github.com/eslint/typescript-eslint-parser/issues/437
+                "no-undef": "off",
+                // TODO: Ensure consistency between member-ordering and sort-comp
+                "@typescript-eslint/member-ordering": [
+                    "error",
+                    {
+                        "default": [
+                            "public-static-field",
+                            "protected-static-field",
+                            "private-static-field",
+                            "public-static-method",
+                            "protected-static-method",
+                            "private-static-method",
+                            "public-instance-field",
+                            "protected-instance-field",
+                            "private-instance-field",
+                            "public-constructor",
+                            "protected-constructor",
+                            "private-constructor",
+                            "public-instance-method",
+                            "protected-instance-method",
+                            "private-instance-method"
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
