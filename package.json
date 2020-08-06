@@ -1,6 +1,8 @@
 {
   "name": "amqplib-topic-controllers",
   "description": "Create structured, declarative and beautifully organized class-based controllers with heavy decorators usage for AMQP Lib using TypeScript",
+  "author": "Alexander Sychev <shurik.shurik.1993@yandex.ru>",
+  "repository": "git@github.com:AlexanderSychev/amqplib-topic-controllers.git",
   "version": "0.0.1",
   "main": "dist/index.js",
   "types": "src/index.ts",
