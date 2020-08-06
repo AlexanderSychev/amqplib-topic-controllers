@@ -1,6 +1,6 @@
 {
   "name": "amqplib-topic-controllers",
-  "description": "Create structured, declarative and beautifully organized class-based controllers with heavy decorators usage for AMQP Lib usint TypeScript",
+  "description": "Create structured, declarative and beautifully organized class-based controllers with heavy decorators usage for AMQP Lib using TypeScript",
   "version": "0.0.1",
   "main": "dist/index.js",
   "types": "src/index.ts",
