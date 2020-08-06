@@ -2,15 +2,18 @@ import { Channel, ConfirmChannel, Options } from 'amqplib';
 
 import createTopicsMap, { MessageHandler } from './createTopicsMap';
 import { ActionType } from './actions';
+import { ILogger, ConsoleLogger } from './log';
 
 export interface BindToChannelParams {
   controllers: (Function | [Function, ...any[]])[];
   channel: Channel | ConfirmChannel;
   exchangeName: string;
   exchangeParams?: Options.AssertExchange;
+  logger?: ILogger;
 }
 
 async function consume(
+  logger: ILogger,
   channel: Channel | ConfirmChannel,
   queue: string,
   handlers: Map<string, MessageHandler>,
@@ -20,6 +23,8 @@ async function consume(
     queue,
     async (message) => {
       if (message && handlers.has(message.fields.routingKey)) {
+        logger.consume(queue, message);
+
         const handler = handlers.get(message.fields.routingKey);
         await handler!(message);
         if (options && !options.noAck) {
@@ -32,6 +37,7 @@ async function consume(
 }
 
 async function consumeAndReply(
+  logger: ILogger,
   channel: Channel | ConfirmChannel,
   queue: string,
   handlers: Map<string, MessageHandler>,
@@ -42,6 +48,8 @@ async function consumeAndReply(
     queue,
     async (message) => {
       if (message && handlers.has(message.fields.routingKey)) {
+        logger.consume(queue, message);
+
         const handler = handlers.get(message.fields.routingKey);
         const result = await handler!(message);
         const { correlationId, replyTo } = message.properties;
@@ -50,6 +58,8 @@ async function consumeAndReply(
         );
         channel.sendToQueue(replyTo, response, { correlationId });
         channel.ack(message);
+
+        logger.reply(replyTo, correlationId);
       }
     },
     options,
@@ -61,6 +71,7 @@ export default async function bindToChannel({
   channel,
   exchangeName,
   exchangeParams = { durable: true },
+  logger = new ConsoleLogger(),
 }: BindToChannelParams): Promise<void> {
   const topicsMap = createTopicsMap(controllers);
 
@@ -94,9 +105,9 @@ export default async function bindToChannel({
     }
 
     if (actionType === ActionType.RETURNABLE_JSON || actionType === ActionType.RETURNABLE_SIMPLE) {
-      await consumeAndReply(channel, queue, handlers, actionType);
+      await consumeAndReply(logger, channel, queue, handlers, actionType);
     } else {
-      await consume(channel, queue, handlers, options);
+      await consume(logger, channel, queue, handlers, options);
     }
   }
 }

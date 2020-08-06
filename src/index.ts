@@ -1,6 +1,7 @@
 export { default as bindToChannel, BindToChannelParams } from './bindToChannel';
 export { default as Controller } from './Controller';
 export { Action, Task, Returnable, ReturnableParams } from './actions';
+export { ILogger } from './log';
 export {
   Message,
   MessageField,
