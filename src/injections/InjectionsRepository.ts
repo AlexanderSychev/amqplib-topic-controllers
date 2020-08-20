@@ -1,9 +1,8 @@
 import { Message } from 'amqplib';
-
-export type Injector = (message: Message) => any;
+import { Injector } from './interfaces';
 
 export default class InjectionsRepository {
-  protected injectionsByProps: Map<string, Injector[]> = new Map<string, Injector[]>();
+  protected injectionsByProps: Map<string, (Injector | undefined)[]> = new Map<string, (Injector | undefined)[]>();
 
   public addInjector(propertyKey: string, parameterIndex: number, injector: Injector): void {
     if (!this.injectionsByProps.has(propertyKey)) {
@@ -13,16 +12,24 @@ export default class InjectionsRepository {
     list![parameterIndex] = injector;
   }
 
-  public getInjectedArguments(propertyKey: string, message: Message): any[] {
+  public async getInjectedArguments(propertyKey: string, message: Message): Promise<any[]> {
     if (this.injectionsByProps.has(propertyKey)) {
       const list = this.injectionsByProps.get(propertyKey);
-      return list!.map((injector) => (injector ? injector(message) : undefined));
+      const result = [];
+      for (const injector of list!) {
+        if (injector) {
+          result.push(await injector(message));
+        } else {
+          result.push(undefined);
+        }
+      }
+      return result;
     } else {
       return [];
     }
   }
 
-  public getInjectors(propertyKey: string): Injector[] | undefined {
+  public getInjectors(propertyKey: string): (Injector | undefined)[] | undefined {
     return this.injectionsByProps.get(propertyKey);
   }
 }

@@ -10,15 +10,19 @@ export interface BindToChannelParams {
   exchangeName: string;
   exchangeParams?: Options.AssertExchange;
   logger?: ILogger;
+  errorHeaderName?: string;
+  transformError?: (error: any) => any;
 }
 
-async function consume(
-  logger: ILogger,
-  channel: Channel | ConfirmChannel,
-  queue: string,
-  handlers: Map<string, MessageHandler>,
-  options?: Options.Consume,
-) {
+interface ConsumeParams {
+  logger: ILogger;
+  channel: Channel | ConfirmChannel;
+  queue: string;
+  handlers: Map<string, MessageHandler>;
+  options?: Options.Consume;
+}
+
+async function consume({ logger, channel, queue, handlers, options = {} }: ConsumeParams) {
   await channel.consume(
     queue,
     async (message) => {
@@ -26,8 +30,13 @@ async function consume(
         logger.consume(queue, message);
 
         const handler = handlers.get(message.fields.routingKey);
-        await handler!(message);
-        if (options && !options.noAck) {
+        try {
+          await handler!(message);
+        } catch (error) {
+          logger.error(queue, message, error);
+        }
+
+        if (!options.noAck) {
           channel.ack(message);
         }
       }
@@ -36,14 +45,27 @@ async function consume(
   );
 }
 
-async function consumeAndReply(
-  logger: ILogger,
-  channel: Channel | ConfirmChannel,
-  queue: string,
-  handlers: Map<string, MessageHandler>,
-  actionType: ActionType,
-  options?: Options.Consume,
-) {
+interface ConsumeAndReplyParams {
+  logger: ILogger;
+  channel: Channel | ConfirmChannel;
+  queue: string;
+  handlers: Map<string, MessageHandler>;
+  errorHeaderName: string;
+  transformError: (error: any) => any;
+  actionType: ActionType;
+  options?: Options.Consume;
+}
+
+async function consumeAndReply({
+  logger,
+  channel,
+  queue,
+  handlers,
+  actionType,
+  options,
+  errorHeaderName,
+  transformError,
+}: ConsumeAndReplyParams) {
   await channel.consume(
     queue,
     async (message) => {
@@ -51,12 +73,31 @@ async function consumeAndReply(
         logger.consume(queue, message);
 
         const handler = handlers.get(message.fields.routingKey);
-        const result = await handler!(message);
+
+        let result: unknown;
+        let isError: boolean;
+        try {
+          result = await handler!(message);
+          isError = false;
+        } catch (error) {
+          logger.error(queue, message, error);
+          isError = true;
+          result = await transformError(error);
+        }
+
         const { correlationId, replyTo } = message.properties;
         const response = Buffer.from(
-          actionType === ActionType.RETURNABLE_JSON ? JSON.stringify(result) : String(result),
+          actionType === ActionType.RETURNABLE_JSON || isError ? JSON.stringify(result) : String(result),
         );
-        channel.sendToQueue(replyTo, response, { correlationId });
+
+        const publishOptions: Options.Publish = { correlationId };
+        if (isError) {
+          publishOptions.headers = {
+            [errorHeaderName]: JSON.stringify(true),
+          };
+        }
+
+        channel.sendToQueue(replyTo, response, publishOptions);
         channel.ack(message);
 
         logger.reply(replyTo, correlationId);
@@ -66,12 +107,20 @@ async function consumeAndReply(
   );
 }
 
+export const AMQPLIB_TOPIC_CONTROLLERS_ERROR_HEADER_NAME = 'X-Amqplib-Topic-Controller-Is-Error';
+
+const defaultTransformError = (error: unknown) => ({
+  error: error instanceof Error ? String(error) : error,
+});
+
 export default async function bindToChannel({
   controllers,
   channel,
   exchangeName,
   exchangeParams = { durable: true },
   logger = new ConsoleLogger(),
+  errorHeaderName = AMQPLIB_TOPIC_CONTROLLERS_ERROR_HEADER_NAME,
+  transformError = defaultTransformError,
 }: BindToChannelParams): Promise<void> {
   const topicsMap = createTopicsMap(controllers);
 
@@ -105,9 +154,9 @@ export default async function bindToChannel({
     }
 
     if (actionType === ActionType.RETURNABLE_JSON || actionType === ActionType.RETURNABLE_SIMPLE) {
-      await consumeAndReply(logger, channel, queue, handlers, actionType);
+      await consumeAndReply({ logger, channel, queue, handlers, actionType, errorHeaderName, transformError });
     } else {
-      await consume(logger, channel, queue, handlers, options);
+      await consume({ logger, channel, queue, handlers, options });
     }
   }
 }

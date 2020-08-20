@@ -63,6 +63,20 @@ It's important to set these options in `tsconfig.json` file of your project:
 }
 ```
 
+## Step #5 (optional) - install `class-validator` and `class-transformer` packages
+
+If you want to use automatic transformations and validations for JSON message content, you should install `class-validator` and `class-transformer` packages:
+
+By NPM:
+```bash
+npm install class-validator class-transformer --save
+```
+
+Or by Yarn:
+```bash
+yarn add class-validator class-transformer
+```
+
 ## Example of usage
 
 Create controller class:
@@ -215,7 +229,7 @@ You also can see example aplication [here](https://github.com/AlexanderSychev/am
 
 ## Main reference
 
-#### `bindToChannel(params: BindToChannelParams)`
+### `bindToChannel(params: BindToChannelParams)`
 
 Attaches controllers to existing AMQP connection channel. Asserts exchange with settled name and asserts all needed queues.
 
@@ -227,6 +241,8 @@ Attaches controllers to existing AMQP connection channel. Asserts exchange with 
 * `exchangeName` (required, type `string`) - target exchange for calculated controllers topics.
 * `exchangeParams` (optional, type `Options.AssertExchange`) - target exchange configuration (see `amqplib` "Channel" method ["assertExchange"](http://www.squaremobius.net/amqp.node/channel_api.html#channel_assertExchange) documentation for details). By default, equals `{ durable: true }`.
 * `logger` (optional, type `ILogger`) - object with methods to log all incoming and outcoming messages. Internal console logger using by default. See `interface ILogger` below for details.
+* `errorHeaderName` (optional, type `string`) - name of header, which marks that remote service replied with error. Equals constant `AMQPLIB_TOPIC_CONTROLLERS_ERROR_HEADER_NAME` (`"X-Amqplib-Topic-Controller-Is-Error"`) by default. See **"Error handling"** section below for details.
+* `transformError(error: unknown): any` (optional, type `Function`) - error response builder for producer. May be asynchronous. See **"Error handling"** section below for details.
 
 #### `interface ILogger`
 
@@ -237,14 +253,27 @@ Methods to implement:
 * `reply(queue: string, corellationId: unknown): void` - log reply;
 * `error(queue: string, message: Message, err: unknown)` - log error;
 
+### Error handling
+
+Package automatically catch all errors thrown by your actions. Every error will be logged. If action is returnable, error will be returned in content of reply message.
+
+Reply message will be marked by special header. Header will contain stringified `true` value. Name of this header is value of constant `AMQPLIB_TOPIC_CONTROLLERS_ERROR_HEADER_NAME` (`"X-Amqplib-Topic-Controller-Is-Error"`) by default, but you can change it by `errorHeaderName` option of `bindToChannel` function.
+
+Content of error message will be JSON string. By default it will maps into object like this:
+```json
+{
+  "error": "Error: Some error"
+}
+```
+But you can override this behavior by `transformError` option of `bindToChannel` function. Error builder must receive error as first argument and return any entity which can be stringified by `JSON.stringify` function. Error builder can be asynchronous (return `Promise`).
+
 ## Decorators reference
 
 ### Class decorators
 
 #### `Controller(name?: string): ClassDecorator`
 
-Decorator factory which marks class as controller. Every controller class must be marked by this decorator or
-it will be skipped.
+Decorator factory which marks class as controller. Every controller class must be marked by this decorator or it will be skipped.
 
 Argument `name` defines name of controller (`<ControllerName>` in `<ControllerName>.<ActionName>` topic template). If it's not settled, decorator will try to get name from `displayName` static property or from name of class. Otherwise, error will be thrown.
 
@@ -270,7 +299,7 @@ Argument `params` is object with optional fields:
 * `name` (type `string`, optional) - defines name of action (`<ActionName>` in `<ControllerName>.<ActionName>` topic template). If it's not settled, decorator will try to get name for method name. Otherwise, error will be thrown.
 * `json` (type `boolean`, optional) - if `true`, result of method will be sended to producer as stringified JSON document. Otherwise, result of method will be just casted to `string`. Default value is `true`.
 
-You can pass `string` value as argument. THis will be equivalent of `{ name: string }` argument.
+You can pass `string` value as argument. This will be equivalent of `{ name: string }` argument.
 
 ### Method arguments decorators (Injectors)
 
@@ -288,13 +317,7 @@ Injects raw message content (type `Buffer`) to parameter, without any parsing an
 
 Injects stringified message content (type `string`) to parameter - just decodes `Buffer`.
 
-Argument `encoding` defines encoding of source message content. By default, content will be stringified "as-is" (`.toString()`);
-
-#### `JsonMessageContent(encoding?: BufferEncoding): ParameterDecorator`
-
-Inject message content as parsed JavaScript object (result of `JSON.parse`) - decodes `Buffer` and pass string to `JSON.parse`.
-
-Argument `encoding` defines encoding of source message content. By default, content will be stringified "as-is" (`.toString()`);
+Argument `encoding` defines encoding of source message content. By default, content will be stringified by `contentEncoding` AMQP message property or "as-is" (`.toString()`);
 
 #### `MessageProperties(): ParameterDecorator`
 
@@ -315,6 +338,34 @@ Injects message fields (see `amqplib` documentation for "Channel" method ["consu
 Injects concrete message field (see `amqplib` documentation for "Channel" method ["consume"](squaremobius.net/amqp.node/channel_api.html#channel_consume) for details).
 
 Argument `name` is required and defines name of field to inject.
+
+#### `JsonMessageContent(options?: BufferEncoding | JsonMessageContentOptions | null | undefined): ParameterDecorator`
+
+Inject message content as parsed JavaScript object (result of `JSON.parse`) - decodes `Buffer` and pass string to `JSON.parse`. Optionally, object can be transformed into instance of given class and validated.
+
+Argument `options` is object with optional fields (`interface JsonMessageContentOptions`):
+* `encoding` (type `BufferEncoding`, subtype of `string`) - defines encoding of source message content. By default, content will be stringified by `contentEncoding` AMQP message property or "as-is" (`.toString()`);
+* `transform` (type `boolean`) - should content will be transformed by `class-transformer` package;
+* `validate` (type `boolean`) - should content will be validated by `class-validator` package;
+* `targetClass` (type `TargetClass`) - class to transform JSON response by `class-transformer`;
+
+When `transform` is `true`, option `targetClass` is required (or error will be thrown).
+When `validate` is `true`, options `transform` and `targetClass` are required (or error will be thrown).
+
+You can pass `BufferEncoding`/`string` value as argument. This will be equivalent of `{ encoding: string }` argument.
+
+#### `ValidInstanceContent(targetClass: TargetClass, encoding?: BufferEncoding | null | undefined)`
+
+Alias for `JsonMessageContent({ targetClass: TargetClass, encoding, validate: true, transform: true })`. Injects instantiated and validated content body object.
+
+#### `interface TargetClass`
+
+Class of entity to transform and validate JSON body:
+```typescript
+interface TargetClass {
+  new (...args: any[]): any;
+}
+```
 
 ## For developers
 

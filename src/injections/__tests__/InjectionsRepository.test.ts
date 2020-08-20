@@ -2,8 +2,8 @@ import 'reflect-metadata';
 import { Message as AmqpMessage } from 'amqplib';
 
 import InjectionsRepository from '../InjectionsRepository';
-import { MessageProperty, JsonMessageContent } from '../injections';
-import { AMQPLIB_ACTION_PARAMS_INJECTIONS } from '../constants';
+import { MessageProperty, JsonMessageContent } from '../decorators';
+import { AMQPLIB_ACTION_PARAMS_INJECTIONS } from '../../constants';
 
 const TEST_MESSAGE: AmqpMessage = {
   properties: {
@@ -43,9 +43,9 @@ class Test {
   public other(_: number) {}
 }
 
-test('Injection decorator succesfully maps arguments', () => {
+test('Injection decorator succesfully maps arguments', async () => {
   const repo: InjectionsRepository = Reflect.getOwnMetadata(AMQPLIB_ACTION_PARAMS_INJECTIONS, Test.prototype);
-  const args = repo.getInjectedArguments('handle', TEST_MESSAGE);
+  const args = await repo.getInjectedArguments('handle', TEST_MESSAGE);
   expect(args).toEqual([
     TEST_MESSAGE.properties.correlationId,
     undefined,
@@ -55,8 +55,8 @@ test('Injection decorator succesfully maps arguments', () => {
   ]);
 });
 
-test('Injections repository returns empty arguments list for method without injection decorators', () => {
+test('Injections repository returns empty arguments list for method without injection decorators', async () => {
   const repo: InjectionsRepository = Reflect.getOwnMetadata(AMQPLIB_ACTION_PARAMS_INJECTIONS, Test.prototype);
-  const args = repo.getInjectedArguments('other', TEST_MESSAGE);
+  const args = await repo.getInjectedArguments('other', TEST_MESSAGE);
   expect(args).toEqual([]);
 });

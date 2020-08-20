@@ -17,13 +17,13 @@ export class ConsoleLogger implements ILogger {
   ): void {
     let message = `[${new Date()}] Consuming "${routingKey}" from exchange "${exchange}", queue "${queue}".`;
     if (correlationId && replyTo) {
-      message = `${message} Corellation ID: "${correlationId}", queue to reply: "${replyTo}".`;
+      message = `${message} Correlation ID: "${correlationId}", queue to reply: "${replyTo}".`;
     }
     console.info(message);
   }
 
-  public reply(queue: string, corellationId: unknown): void {
-    console.info(`[${new Date()}] Reply message to queue "${queue}" with. Corellation ID: ${corellationId}`);
+  public reply(queue: string, correlationId: unknown): void {
+    console.info(`[${new Date()}] Reply message to queue "${queue}" with. Correlation ID: "${correlationId}".`);
   }
 
   public error(
@@ -33,7 +33,7 @@ export class ConsoleLogger implements ILogger {
   ): void {
     let message = `[${new Date()}] Error while consuming "${routingKey}" from exchange "${exchange}", queue "${queue}": ${err}`;
     if (correlationId && replyTo) {
-      message = `${message} Corellation ID: "${correlationId}", queue to reply: "${replyTo}".`;
+      message = `${message} Correlation ID: "${correlationId}", queue to reply: "${replyTo}".`;
     }
     console.error(message);
   }

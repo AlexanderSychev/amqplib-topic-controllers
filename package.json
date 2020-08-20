@@ -3,7 +3,7 @@
   "description": "Create structured, declarative and beautifully organized class-based controllers with heavy decorators usage for AMQP Lib using TypeScript",
   "author": "Alexander Sychev <shurik.shurik.1993@yandex.ru>",
   "repository": "git@github.com:AlexanderSychev/amqplib-topic-controllers.git",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "main": "dist/index.js",
   "types": "src/index.ts",
   "license": "MIT",
@@ -18,9 +18,12 @@
   },
   "devDependencies": {
     "amqplib": "0.6.0",
+    "class-validator": "0.12.2",
+    "class-transformer": "0.3.1",
     "reflect-metadata": "0.1.13",
     "typescript": "3.9.7",
     "jest": "26.1.0",
+    "@types/uuid": "8.3.0",
     "@types/jest": "26.0.5",
     "@typescript-eslint/eslint-plugin": "3.5.0",
     "@typescript-eslint/parser": "3.5.0",
@@ -28,10 +31,13 @@
     "eslint-config-prettier": "6.11.0",
     "eslint-import-resolver-typescript": "2.0.0",
     "eslint-plugin-import": "2.22.0",
-    "prettier": "2.0.5"
+    "prettier": "2.0.5",
+    "uuid": "8.3.0"
   },
   "peerDependencies": {
     "amqplib": "^0.6.0",
-    "reflect-metadata": "^0.1.13"
+    "reflect-metadata": "^0.1.13",
+    "class-validator": "^0.12.2",
+    "class-transformer": "^0.3.1"
   }
 }

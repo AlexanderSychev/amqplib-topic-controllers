@@ -1,5 +1,5 @@
 import { Message } from 'amqplib';
-import InjectionsRepository from './InjectionsRepository';
+import { InjectionsRepository } from './injections';
 import {
   AMQPLIB_ACTION_NAME,
   AMQPLIB_ACTION_PARAMS_INJECTIONS,
@@ -12,7 +12,7 @@ interface Newable {
   new (...args: any[]): any;
 }
 
-export type MessageHandler = (message: Message) => any;
+export type MessageHandler = (message: Message) => Promise<any>;
 
 export default function createTopicsMap(
   controllers: (Function | [Function, ...any[]])[],
@@ -41,20 +41,21 @@ export default function createTopicsMap(
           AMQPLIB_ACTION_PARAMS_INJECTIONS,
           ControllerConstructor.prototype,
         );
-        if (Reflect.hasOwnMetadata(AMQPLIB_ACTION_NAME, prop) || Reflect.hasOwnMetadata(AMQPLIB_ACTION_TYPE, prop)) {
+        if (Reflect.hasOwnMetadata(AMQPLIB_ACTION_NAME, prop) && Reflect.hasOwnMetadata(AMQPLIB_ACTION_TYPE, prop)) {
           const actionName: string = Reflect.getOwnMetadata(AMQPLIB_ACTION_NAME, prop);
           const actionType: ActionType = Reflect.getOwnMetadata(AMQPLIB_ACTION_TYPE, prop);
 
           if (!topicsMap.has(actionType)) {
-            topicsMap.set(actionType, new Map<string, (message: Message) => any>());
+            topicsMap.set(actionType, new Map<string, MessageHandler>());
           }
 
-          const handler = (message: Message) => {
+          const handler: MessageHandler = async (message: Message) => {
             let args: any[] = [];
             if (actionInjections) {
-              args = actionInjections.getInjectedArguments(propName, message);
+              args = await actionInjections.getInjectedArguments(propName, message);
             }
-            return controller[propName](...args);
+            const result = await controller[propName](...args);
+            return result;
           };
 
           topicsMap.get(actionType)!.set(`${controllerName}.${actionName}`, handler);

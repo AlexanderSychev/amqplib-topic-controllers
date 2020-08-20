@@ -57,16 +57,17 @@ class Test02 {
 describe('Constructor and action arguments tests', () => {
   const map = createTopicsMap([[Test02, 'bar']]);
 
-  test('Constructor argument used in controller', () => {
+  test('Constructor argument used in controller', async () => {
     const result = map.get(ActionType.RETURNABLE_SIMPLE)!.get('test02.getFoo')!(<any>{});
-    expect(result).toBe('bar');
+    await expect(result).resolves.toBe('bar');
   });
 
-  test('Action argument test', () => {
+  test('Action argument test', async () => {
     const result = map.get(ActionType.RETURNABLE_SIMPLE)!.get('test02.echo')!(<any>{
+      properties: {},
       content: Buffer.from('Hello world!'),
     });
-    expect(result).toBe('Hello world!');
+    await expect(result).resolves.toBe('Hello world!');
   });
 });
 
