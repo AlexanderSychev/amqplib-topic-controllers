@@ -133,9 +133,11 @@ export default async function bindToChannel({
 }: BindToChannelParams): Promise<void> {
   const topicsMap = createTopicsMap(controllers);
 
-  if (delayedExchange) {
+  if (delayedExchange && !Object.isFrozen(exchangeParams)) {
     if (exchangeParams.arguments) {
-      exchangeParams.arguments['x-delayed-type'] = 'topic';
+      if (exchangeParams.arguments['x-delayed-type'] !== 'topic') {
+        exchangeParams.arguments['x-delayed-type'] = 'topic';
+      }
     } else {
       exchangeParams.arguments = {
         'x-delayed-type': 'topic',
