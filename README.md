@@ -239,6 +239,7 @@ Attaches controllers to existing AMQP connection channel. Asserts exchange with 
 * `controllers` (required, type `(Function | [Function, ...any[]])[]`) - list of controllers classes to bind. If controller need some constructor parameters, set array, where first item will be controller class and rest items - arguments for constructor. Otherwise, just set controller class.
 * `channel` (required, type `Channel | ConfirmChannel`) - target channel to bind controllers consumers.
 * `exchangeName` (required, type `string`) - target exchange for calculated controllers topics.
+* `delayedExchange` (optional, type `boolean`) - should target exchange use [RabbitMQ Delayed Message Plugin](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange). If `true` function will automatically fix some parameters and create exchange with special type;
 * `exchangeParams` (optional, type `Options.AssertExchange`) - target exchange configuration (see `amqplib` "Channel" method ["assertExchange"](http://www.squaremobius.net/amqp.node/channel_api.html#channel_assertExchange) documentation for details). By default, equals `{ durable: true }`.
 * `logger` (optional, type `ILogger`) - object with methods to log all incoming and outcoming messages. Internal console logger using by default. See `interface ILogger` below for details.
 * `errorHeaderName` (optional, type `string`) - name of header, which marks that remote service replied with error. Equals constant `AMQPLIB_TOPIC_CONTROLLERS_ERROR_HEADER_NAME` (`"X-Amqplib-Topic-Controller-Is-Error"`) by default. See **"Error handling"** section below for details.
@@ -400,8 +401,3 @@ yarn test
 ```
 
 It runs `test.py` file with full testing cycle.
-
-## Road map
-
-* Error handling;
-* Message transformation and validation by `class-transformer` and `class-validator` packages;
