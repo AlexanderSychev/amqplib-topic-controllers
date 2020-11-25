@@ -9,6 +9,7 @@ export interface BindToChannelParams {
   channel: Channel | ConfirmChannel;
   exchangeName: string;
   exchangeParams?: Options.AssertExchange;
+  delayedExchange?: boolean;
   logger?: ILogger;
   errorHeaderName?: string;
   transformError?: (error: any) => any;
@@ -86,9 +87,16 @@ async function consumeAndReply({
         }
 
         const { correlationId, replyTo } = message.properties;
-        const response = Buffer.from(
-          actionType === ActionType.RETURNABLE_JSON || isError ? JSON.stringify(result) : String(result),
-        );
+
+        let responseString: string;
+
+        if (actionType === ActionType.RETURNABLE_JSON || isError) {
+          responseString = result ? JSON.stringify(result) : '';
+        } else {
+          responseString = String(result);
+        }
+
+        const response = Buffer.from(responseString);
 
         const publishOptions: Options.Publish = { correlationId };
         if (isError) {
@@ -117,6 +125,7 @@ export default async function bindToChannel({
   controllers,
   channel,
   exchangeName,
+  delayedExchange,
   exchangeParams = { durable: true },
   logger = new ConsoleLogger(),
   errorHeaderName = AMQPLIB_TOPIC_CONTROLLERS_ERROR_HEADER_NAME,
@@ -124,7 +133,21 @@ export default async function bindToChannel({
 }: BindToChannelParams): Promise<void> {
   const topicsMap = createTopicsMap(controllers);
 
-  const { exchange } = await channel.assertExchange(exchangeName, 'topic', exchangeParams);
+  if (delayedExchange) {
+    if (exchangeParams.arguments) {
+      exchangeParams.arguments['x-delayed-type'] = 'topic';
+    } else {
+      exchangeParams.arguments = {
+        'x-delayed-type': 'topic',
+      };
+    }
+  }
+
+  const { exchange } = await channel.assertExchange(
+    exchangeName,
+    delayedExchange ? 'x-delayed-message' : 'topic',
+    exchangeParams,
+  );
 
   const [{ queue: defaultQueue }, { queue: taskQueue }, { queue: returnableQueue }] = await Promise.all([
     channel.assertQueue('', { exclusive: true }),
